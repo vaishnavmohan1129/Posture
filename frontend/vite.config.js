@@ -22,5 +22,8 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     host: true
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@mediapipe/pose', '@mediapipe/drawing_utils', '@mediapipe/camera_utils']
   }
 })
