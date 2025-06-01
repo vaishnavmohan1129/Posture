@@ -1,10 +1,13 @@
 from flask import Flask, Response, jsonify
+from flask_cors import CORS
 import cv2
 import mediapipe as mp
 import math
 import logging
+import os
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 logging.basicConfig(level=logging.DEBUG)
 
 # Initialize MediaPipe Pose model
@@ -12,10 +15,15 @@ mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 mp_drawing = mp.solutions.drawing_utils
 
-# Open webcam (adjust index if needed)
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    logging.error("Error: Could not open webcam. Check if it is connected or if another application is using it.")
+# Check if we're in a cloud environment
+IS_CLOUD = os.environ.get('RENDER', False)
+
+# Initialize webcam only if not in cloud environment
+cap = None
+if not IS_CLOUD:
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        logging.error("Error: Could not open webcam. Check if it is connected or if another application is using it.")
 
 def calculate_angle(a, b, c):
     angle = math.degrees(math.atan2(c.y - b.y, c.x - b.x) -
@@ -39,6 +47,9 @@ def check_posture(landmarks):
         return "Neutral Posture", (255, 255, 0), hip_angle  # Yellow
 
 def generate_frames():
+    if IS_CLOUD:
+        return jsonify({"error": "Webcam access not available in cloud environment"}), 503
+
     while True:
         success, frame = cap.read()
         if not success:
@@ -79,15 +90,20 @@ def generate_frames():
 
 @app.route('/')
 def home():
-    return "Backend is running!"
+    return "Posture Backend is running!"
 
 @app.route('/video_feed')
 def video_feed():
+    if IS_CLOUD:
+        return jsonify({"error": "Webcam access not available in cloud environment"}), 503
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/posture')
 def posture_endpoint():
+    if IS_CLOUD:
+        return jsonify({"error": "Webcam access not available in cloud environment"}), 503
+
     success, frame = cap.read()
     if not success:
         return jsonify({"error": "Failed to capture image"}), 500
@@ -112,6 +128,8 @@ def posture_endpoint():
 
 if __name__ == "__main__":
     try:
-        app.run(host="0.0.0.0", port=5000, debug=True)
+        port = int(os.environ.get('PORT', 5000))
+        app.run(host="0.0.0.0", port=port)
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
