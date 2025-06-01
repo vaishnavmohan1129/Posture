@@ -22,7 +22,7 @@ const VideoFeed = () => {
           } 
         });
         setHasPermission(true);
-        stream.getTracks().forEach(track => track.stop());
+        // Don't stop the stream here
       } catch (err) {
         setError("Please allow camera access to use posture detection");
         console.error("Camera permission error:", err);
@@ -33,7 +33,7 @@ const VideoFeed = () => {
   }, []);
 
   useEffect(() => {
-    if (!hasPermission) return;
+    if (!hasPermission || !webcamRef.current) return;
 
     const pose = new poseDetection.Pose({
       locateFile: (file) => {
@@ -52,6 +52,10 @@ const VideoFeed = () => {
       if (results.poseLandmarks) {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
+        
+        // Set canvas dimensions to match video
+        canvas.width = webcamRef.current.video.videoWidth;
+        canvas.height = webcamRef.current.video.videoHeight;
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -80,16 +84,20 @@ const VideoFeed = () => {
       }
     });
 
+    let animationFrameId;
     const detectPose = async () => {
       if (webcamRef.current && webcamRef.current.video.readyState === 4) {
         await pose.send({ image: webcamRef.current.video });
       }
-      requestAnimationFrame(detectPose);
+      animationFrameId = requestAnimationFrame(detectPose);
     };
 
     detectPose();
 
     return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
       pose.close();
     };
   }, [hasPermission]);
@@ -138,19 +146,19 @@ const VideoFeed = () => {
       <h1 className="text-2xl font-bold mb-4">Live Pose Detection</h1>
       {hasPermission ? (
         <div className="relative w-full max-w-2xl">
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            videoConstraints={videoConstraints}
-            className="w-full rounded-lg shadow-lg"
-            style={{ display: 'none' }}
-          />
-          <canvas
-            ref={canvasRef}
-            className="w-full rounded-lg shadow-lg"
-            width={1280}
-            height={720}
-          />
+          <div className="relative">
+            <Webcam
+              ref={webcamRef}
+              audio={false}
+              videoConstraints={videoConstraints}
+              className="w-full rounded-lg shadow-lg"
+              mirrored={true}
+            />
+            <canvas
+              ref={canvasRef}
+              className="absolute top-0 left-0 w-full h-full rounded-lg"
+            />
+          </div>
           {postureStatus && (
             <div className={`mt-4 p-4 rounded-lg text-center ${
               postureStatus.includes("Good") 
