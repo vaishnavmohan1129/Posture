@@ -1,8 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
 import Webcam from "react-webcam";
-import PoseModule from "@mediapipe/pose";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-const { Pose, POSE_CONNECTIONS } = PoseModule;
 
 const VideoFeed = () => {
   const webcamRef = useRef(null);
@@ -23,18 +20,21 @@ const VideoFeed = () => {
           } 
         });
         setHasPermission(true);
-        // Don't stop the stream here
       } catch (err) {
         setError("Camera permission denied or dismissed. Please allow camera access to use posture detection.");
         console.error("Camera permission error:", err);
       }
     };
-
     setupCamera();
   }, []);
 
   useEffect(() => {
     if (!hasPermission || !webcamRef.current) return;
+
+    const Pose = window.Pose;
+    const POSE_CONNECTIONS = window.POSE_CONNECTIONS;
+    const drawConnectors = window.drawConnectors;
+    const drawLandmarks = window.drawLandmarks;
 
     const pose = new Pose({
       locateFile: (file) => {
@@ -53,28 +53,14 @@ const VideoFeed = () => {
       if (results.poseLandmarks) {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        
-        // Set canvas dimensions to match video
         canvas.width = webcamRef.current.video.videoWidth;
         canvas.height = webcamRef.current.video.videoHeight;
-        
-        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw video frame
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-        
-        // Draw pose landmarks
-        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,
-          { color: '#00FF00', lineWidth: 2 });
-        drawLandmarks(ctx, results.poseLandmarks,
-          { color: '#FF0000', lineWidth: 1 });
-
-        // Calculate neck angle
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+        drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 1 });
         const neckAngle = calculateNeckAngle(results.poseLandmarks);
         setAngle(neckAngle);
-
-        // Determine posture status
         if (neckAngle > 45) {
           setPostureStatus("Bad Posture - Neck angle too high");
         } else if (neckAngle < 15) {
@@ -92,9 +78,7 @@ const VideoFeed = () => {
       }
       animationFrameId = requestAnimationFrame(detectPose);
     };
-
     detectPose();
-
     return () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
@@ -104,23 +88,17 @@ const VideoFeed = () => {
   }, [hasPermission]);
 
   const calculateNeckAngle = (landmarks) => {
-    // Get relevant landmarks
     const nose = landmarks[0];
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
-    
-    // Calculate shoulder midpoint
     const shoulderMidpoint = {
       x: (leftShoulder.x + rightShoulder.x) / 2,
       y: (leftShoulder.y + rightShoulder.y) / 2
     };
-    
-    // Calculate angle between vertical line and neck
     const angle = Math.abs(Math.atan2(
       nose.x - shoulderMidpoint.x,
       nose.y - shoulderMidpoint.y
     ) * (180 / Math.PI));
-    
     return Math.round(angle);
   };
 
