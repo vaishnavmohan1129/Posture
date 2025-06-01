@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import Webcam from "react-webcam";
-import { Pose } from "@mediapipe/pose";
+import PoseModule from "@mediapipe/pose";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
+const { Pose, POSE_CONNECTIONS } = PoseModule;
 
 const VideoFeed = () => {
   const webcamRef = useRef(null);
@@ -64,7 +65,7 @@ const VideoFeed = () => {
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
         
         // Draw pose landmarks
-        drawConnectors(ctx, results.poseLandmarks, Pose.POSE_CONNECTIONS,
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,
           { color: '#00FF00', lineWidth: 2 });
         drawLandmarks(ctx, results.poseLandmarks,
           { color: '#FF0000', lineWidth: 1 });
