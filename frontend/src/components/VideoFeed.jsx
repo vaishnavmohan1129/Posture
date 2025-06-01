@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import Webcam from "react-webcam";
-import * as poseDetection from "@mediapipe/pose";
-import * as drawingUtils from "@mediapipe/drawing_utils";
+import { Pose } from "@mediapipe/pose";
+import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 
 const VideoFeed = () => {
   const webcamRef = useRef(null);
@@ -24,7 +24,7 @@ const VideoFeed = () => {
         setHasPermission(true);
         // Don't stop the stream here
       } catch (err) {
-        setError("Please allow camera access to use posture detection");
+        setError("Camera permission denied or dismissed. Please allow camera access to use posture detection.");
         console.error("Camera permission error:", err);
       }
     };
@@ -35,7 +35,7 @@ const VideoFeed = () => {
   useEffect(() => {
     if (!hasPermission || !webcamRef.current) return;
 
-    const pose = new poseDetection.Pose({
+    const pose = new Pose({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
       }
@@ -64,9 +64,9 @@ const VideoFeed = () => {
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
         
         // Draw pose landmarks
-        drawingUtils.drawConnectors(ctx, results.poseLandmarks, poseDetection.POSE_CONNECTIONS,
+        drawConnectors(ctx, results.poseLandmarks, Pose.POSE_CONNECTIONS,
           { color: '#00FF00', lineWidth: 2 });
-        drawingUtils.drawLandmarks(ctx, results.poseLandmarks,
+        drawLandmarks(ctx, results.poseLandmarks,
           { color: '#FF0000', lineWidth: 1 });
 
         // Calculate neck angle
